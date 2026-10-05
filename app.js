@@ -31,6 +31,21 @@ const somme = (arr, f) => arr.reduce((s, x) => s + (+f(x) || 0), 0);
 const fmtCourt = n => n >= 1000 ? (Math.round(n / 100) / 10) + 'k' : String(Math.round(n));
 const STATUTS = { confirme: 'Confirmé', termine: 'Terminé', annule: 'Annulé' };
 const MODES = ['Espèces', 'Orange Money', 'MTN MoMo', 'Autre'];
+const DUREES = [30, 40, 60, 90, 120, 150, 180, 210, 240, 270, 300, 330, 360];
+const CATEGORIES = ['Coiffure', 'Onglerie', 'Extensions cils', 'Autre'];
+const fmtDuree = m => { m = +m || 0; if (m < 60) return `${m} min`; const h = Math.floor(m / 60), r = m % 60; return r ? `${h}h${String(r).padStart(2, '0')}` : `${h}h`; };
+const optsDuree = v => { v = +v || 60; const l = DUREES.includes(v) ? DUREES : [...DUREES, v].sort((a, b) => a - b); return l.map(d => `<option value="${d}" ${d === v ? 'selected' : ''}>${fmtDuree(d)}</option>`).join(''); };
+// Prestations du flyer : prix ESTIMATIFS (FCFA) et durées, à ajuster dans « Services & tarifs »
+const CATALOGUE = [
+  ['Onglerie', 'Vernis gel & sur ongle', 5000, 60], ['Onglerie', 'Gainage', 8000, 90], ['Onglerie', 'Construction polygel', 15000, 120], ['Onglerie', 'Pédicure / Manucure', 10000, 90],
+  ['Coiffure', 'Mini coupe sur cheveux', 3000, 30], ['Coiffure', 'Traitement cheveux nappy et défrisés', 10000, 90], ['Coiffure', 'Silk presse (lissage cheveux nappy)', 8000, 90],
+  ['Coiffure', 'Box braids', 15000, 300], ['Coiffure', 'Brazilian wool', 12000, 240], ['Coiffure', 'French curls', 15000, 240], ['Coiffure', 'Marley', 12000, 240],
+  ['Coiffure', 'Pose tissage', 10000, 120], ['Coiffure', 'Koroba', 5000, 90], ['Coiffure', 'Tresses & Twists', 8000, 180], ['Coiffure', 'Pomytail', 8000, 90],
+  ['Coiffure', 'Soins coupes', 6000, 60], ['Coiffure', 'Chignon', 10000, 90], ['Coiffure', 'Twists', 10000, 180], ['Coiffure', 'Finger coils', 8000, 120],
+  ['Coiffure', 'Vanilles', 8000, 120], ['Coiffure', 'Locs', 20000, 360], ['Coiffure', 'Nattes', 5000, 90], ['Coiffure', 'Tissage / greffage', 15000, 180],
+  ['Coiffure', 'Coiffure mariées', 30000, 240], ['Coiffure', 'Brushing + lissage', 5000, 60],
+  ['Extensions cils', 'Pose naturelle', 10000, 90], ['Extensions cils', 'Pose volumineuse', 15000, 120], ['Extensions cils', 'Retouche', 7000, 60]
+];
 
 /* ===== État ===== */
 const DEFAUTS = { nomSalon: 'Bella Market', emailNotif: 'enkydesign@gmail.com', whatsapp: '659494908', ouverture: '08:00', fermeture: '19:00', rappelMin: 15 };
@@ -218,7 +233,7 @@ function modalRdv(r = {}, pre = {}) {
     <label class="champ"><span>Prestation</span><input id="rPresta" maxlength="100" value="${esc(e.prestation)}"></label>
     <div class="deux-champs">
       <label class="champ"><span>Prix (FCFA)</span><input id="rPrix" type="number" min="0" step="100" value="${esc(e.prix)}"></label>
-      <label class="champ"><span>Durée (minutes)</span><input id="rDuree" type="number" min="5" step="5" value="${esc(e.duree)}"></label>
+      <label class="champ"><span>Durée</span><select id="rDuree">${optsDuree(e.duree)}</select></label>
       <label class="champ"><span>Date</span><input id="rDate" type="date" value="${esc(e.date)}"></label>
       <label class="champ"><span>Heure</span><input id="rHeure" type="time" value="${esc(e.heure)}"></label></div>
     <label class="champ"><span>Statut</span><select id="rStatut">${Object.entries(STATUTS).map(([k, v]) => `<option value="${k}" ${k === e.statut ? 'selected' : ''}>${v}</option>`).join('')}</select></label>
@@ -299,23 +314,25 @@ async function sauverClient(id) {
 
 /* ===== Services & tarifs ===== */
 function vueServices() {
-  const liste = [...S.services].sort((a, b) => (a.nom || '').localeCompare(b.nom || ''));
+  const groupes = CATEGORIES.map(c => [c, S.services.filter(x => (x.categorie || 'Autre') === c).sort((a, b) => (a.nom || '').localeCompare(b.nom || ''))]).filter(([, l]) => l.length);
   return `<header class="entete"><h1>Services & tarifs</h1><button class="btn" data-act="nvService">Nouvelle prestation</button></header>
-  <section class="panneau">${liste.length ? `<ul class="liste">${liste.map(s => `<li><button class="ligne" data-act="edService" data-id="${esc(s.id)}"><div class="corps"><b>${esc(s.nom)}</b><span>${esc(s.duree)} min</span></div><span class="montant">${esc(fcfa(s.prix))}</span></button></li>`).join('')}</ul>` : '<p class="vide">Aucune prestation. Ajoutez votre première prestation (coupe, brushing, coloration…).</p>'}</section>
-  <p class="note">Ces prestations et leurs prix sont aussi proposés aux clientes dans le formulaire de demande.</p>`;
+  ${S.services.length ? groupes.map(([c, l]) => `<section class="panneau"><h2 style="margin-bottom:6px">${esc(c)}</h2><ul class="liste">${l.map(x => `<li><button class="ligne" data-act="edService" data-id="${esc(x.id)}"><div class="corps"><b>${esc(x.nom)}</b><span>${esc(fmtDuree(x.duree))}</span></div><span class="montant">${esc(fcfa(x.prix))}</span></button></li>`).join('')}</ul></section>`).join('')
+  : `<section class="panneau"><p class="vide" style="padding-top:0">Aucune prestation pour le moment.</p><button class="btn" data-act="seedServices">Ajouter les prestations du flyer</button><p class="note">Les prix et durées sont des estimations de départ : modifiez-les ensuite une par une.</p></section>`}
+  <p class="note">Les clientes voient ces prestations dans le formulaire, avec le prix indiqué comme « dès ».</p>`;
 }
 function modalService(s = {}) {
   ouvrir(`<h2>${s.id ? 'Modifier la prestation' : 'Nouvelle prestation'}</h2>
     <label class="champ"><span>Nom</span><input id="sNomS" maxlength="100" value="${esc(s.nom || '')}"></label>
+    <label class="champ"><span>Catégorie</span><select id="sCat">${CATEGORIES.map(c => `<option ${c === (s.categorie || 'Coiffure') ? 'selected' : ''}>${c}</option>`).join('')}</select></label>
     <div class="deux-champs">
-      <label class="champ"><span>Prix (FCFA)</span><input id="sPrix" type="number" min="0" step="100" value="${esc(s.prix ?? '')}"></label>
-      <label class="champ"><span>Durée (minutes)</span><input id="sDuree" type="number" min="5" step="5" value="${esc(s.duree ?? 60)}"></label></div>
+      <label class="champ"><span>Prix estimé (FCFA)</span><input id="sPrix" type="number" min="0" step="500" value="${esc(s.prix ?? '')}"></label>
+      <label class="champ"><span>Durée</span><select id="sDuree">${optsDuree(s.duree ?? 60)}</select></label></div>
     <div class="pied">${s.id ? `<button class="lien danger" data-act="supService" data-id="${esc(s.id)}">Supprimer</button>` : ''}<button class="btn sec" data-act="fermer">Annuler</button><button class="btn" data-act="sauverService" data-id="${esc(s.id || '')}">Enregistrer</button></div>`);
 }
 async function sauverService(id) {
   const nom = $('#sNomS').value.trim();
   if (!nom) return toast('Indiquez le nom de la prestation.');
-  const data = { nom, prix: +$('#sPrix').value || 0, duree: +$('#sDuree').value || 60 };
+  const data = { nom, categorie: $('#sCat').value, prix: +$('#sPrix').value || 0, duree: +$('#sDuree').value || 60 };
   if (id) await updateDoc(doc(db, 'services', id), data);
   else await addDoc(collection(db, 'services'), { ...data, createdAt: serverTimestamp() });
   fermer(); toast('Prestation enregistrée');
@@ -413,7 +430,7 @@ function vueDemandes() {
 }
 
 /* ===== Réglages ===== */
-function lienFormulaire() { return new URL('demande.html', location.href).href; }
+function lienFormulaire() { return new URL('rendez-vous.html', location.href).href; }
 function vueReglages() {
   const r = S.reglages;
   return `<header class="entete"><h1>Réglages</h1></header>
@@ -480,6 +497,11 @@ const ACT = {
   edService: el => modalService(S.services.find(s => s.id === el.dataset.id)),
   sauverService: el => sauverService(el.dataset.id),
   supService: async el => { if (confirm('Supprimer cette prestation ?')) { await deleteDoc(doc(db, 'services', el.dataset.id)); fermer(); toast('Prestation supprimée'); } },
+  seedServices: async () => {
+    if (!confirm(`Ajouter ${CATALOGUE.length} prestations avec des prix estimatifs ?`)) return;
+    await Promise.all(CATALOGUE.map(([categorie, nom, prix, duree]) => addDoc(collection(db, 'services'), { categorie, nom, prix, duree, createdAt: serverTimestamp() })));
+    toast('Prestations ajoutées : ajustez les prix');
+  },
   /* Caisse */
   caJour: el => { const n = +el.dataset.d; S.caDate = n === 0 ? today() : addDays(S.caDate, n); render(); },
   nvPaiement: () => modalPaiement(),
@@ -495,8 +517,8 @@ const ACT = {
   /* Demandes */
   dmRdv: el => { const d = S.demandes.find(x => x.id === el.dataset.id); const sv = S.services.find(s => s.nom === d.prestation);
     const existante = S.clients.find(c => c.telephone && c.telephone.replace(/\D/g, '') === d.telephone.replace(/\D/g, ''));
-    const m = /^(\d{4}-\d{2}-\d{2})/.exec(d.dateSouhaitee || '');
-    modalRdv({}, Object.assign({ prestation: d.prestation, demandeId: d.id, notes: d.message || '' }, sv ? { serviceId: sv.id, prix: sv.prix, duree: sv.duree } : {}, m ? { date: m[1] } : {},
+    const m = /^(\d{4}-\d{2}-\d{2})/.exec(d.dateSouhaitee || ''), h = /(\d{2}:\d{2})/.exec(d.dateSouhaitee || '');
+    modalRdv({}, Object.assign({ prestation: d.prestation, demandeId: d.id, notes: d.message || '' }, sv ? { serviceId: sv.id, prix: sv.prix, duree: sv.duree } : {}, m ? { date: m[1] } : {}, h ? { heure: h[1] } : {},
       existante ? { clientId: existante.id } : { nouveauNom: d.nom, nouveauTel: d.telephone })); },
   dmTraitee: el => updateDoc(doc(db, 'demandes', el.dataset.id), { statut: 'traitee' }),
   dmSup: async el => { if (confirm('Supprimer cette demande ?')) await deleteDoc(doc(db, 'demandes', el.dataset.id)); },
@@ -524,7 +546,7 @@ document.addEventListener('change', e => {
   if (e.target.id === 'rClient') $('#rNew').style.display = e.target.value === 'new' ? 'block' : 'none';
   if (e.target.id === 'rService') {
     const s = S.services.find(x => x.id === e.target.value);
-    if (s) { $('#rPresta').value = s.nom; $('#rPrix').value = s.prix; $('#rDuree').value = s.duree; }
+    if (s) { $('#rPresta').value = s.nom; $('#rPrix').value = s.prix; $('#rDuree').innerHTML = optsDuree(s.duree); }
   }
 });
 document.addEventListener('input', e => {
