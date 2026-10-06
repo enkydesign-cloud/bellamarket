@@ -43,6 +43,40 @@ main{max-width:560px;margin:0 auto;padding:28px 18px 120px}
 .wa:focus-visible{outline-color:var(--noir)}
 .wa svg{width:26px;height:26px;fill:#fff}
 .wa span{color:#06361a}
+.natif{display:none}
+.faux{display:flex;align-items:center;justify-content:space-between;gap:10px;width:100%;min-height:48px;padding:10px 12px;border:1px solid #cdbf9f;border-radius:var(--r);background:#fff;font:inherit;color:var(--noir);text-align:left;cursor:pointer}
+.faux.vide{color:#8a8068}
+.faux::after{content:"";width:9px;height:9px;flex:none;margin-top:-4px;border-right:2px solid var(--or-fonce);border-bottom:2px solid var(--or-fonce);transform:rotate(45deg)}
+.fe{position:fixed;inset:0;z-index:60;display:grid;place-items:end center}
+.fe-fond{position:absolute;inset:0;background:rgba(1,1,1,.55)}
+.fe-panneau{position:relative;width:min(440px,100%);max-height:88vh;display:flex;flex-direction:column;background:var(--papier);border-radius:18px 18px 0 0;padding-bottom:env(safe-area-inset-bottom);box-shadow:0 -6px 30px rgba(0,0,0,.25)}
+@media (min-width:600px){.fe{place-items:center}.fe-panneau{border-radius:18px;box-shadow:0 10px 40px rgba(0,0,0,.3)}}
+.fe-tete{display:flex;justify-content:space-between;align-items:center;padding:14px 12px 8px 20px;border-bottom:1px solid var(--trait)}
+.fe-tete h2{font-size:1.25rem}
+.fe-x{width:44px;height:44px;border:0;background:none;font-size:1.9rem;line-height:1;cursor:pointer;color:var(--noir)}
+.fe-corps{overflow:auto;padding:8px 14px 20px}
+.fe-groupe{font-family:'Playfair Display',Georgia,serif;font-size:1.05rem;font-weight:600;margin:14px 6px 2px;color:var(--or-fonce)}
+.fe-ligne{display:flex;justify-content:space-between;align-items:center;gap:12px;width:100%;min-height:48px;padding:8px 10px;border:0;border-bottom:1px solid var(--trait);background:none;font:inherit;text-align:left;cursor:pointer;color:var(--noir)}
+.fe-ligne small{color:var(--doux);white-space:nowrap}
+.fe-ligne:hover{background:rgba(201,162,74,.1)}
+.fe-ligne.on{background:rgba(201,162,74,.22);font-weight:700}
+.note-fe{color:var(--doux);font-size:.92rem;margin:8px 4px 12px}
+.cal-tete{display:flex;align-items:center;justify-content:space-between;margin:6px 0 10px}
+.cal-tete b{font-family:'Playfair Display',Georgia,serif;font-size:1.15rem;text-transform:capitalize}
+.cal-nav{width:44px;height:44px;border:1px solid var(--noir);border-radius:50%;background:none;font-size:1.4rem;line-height:1;cursor:pointer;color:var(--noir)}
+.cal-nav[disabled]{opacity:.3;cursor:default}
+.cal-grille{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;text-align:center}
+.cal-jour-nom{font-size:.8rem;color:var(--doux);padding:4px 0}
+.cal-j{min-height:44px;border:0;border-radius:50%;background:none;font:inherit;cursor:pointer;color:var(--noir)}
+.cal-j:hover{background:rgba(201,162,74,.22)}
+.cal-j.auj{box-shadow:inset 0 0 0 1.5px var(--or-fonce)}
+.cal-j.on{background:var(--or);font-weight:700}
+.cal-j[disabled]{color:#b8ae98;background:none;cursor:default}
+.heures{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+.heure-b{min-height:46px;border:1px solid var(--noir);border-radius:99px;background:none;font:inherit;font-weight:500;cursor:pointer;color:var(--noir)}
+.heure-b:hover{background:rgba(22,19,15,.06)}
+.heure-b.on{background:var(--noir);color:var(--or)}
+.heure-b[disabled]{opacity:.35;text-decoration:line-through;cursor:default;border-color:#b8ae98;background:none}
 .dispo{margin:-4px 0 18px;font-size:.95rem}
 .dispo p{margin:0 0 8px}
 .dispo .pris{color:var(--doux)}
@@ -66,12 +100,15 @@ main{max-width:560px;margin:0 auto;padding:28px 18px 120px}
     <form id="f" novalidate>
       <label class="champ"><span>Votre nom</span><input id="nom" maxlength="80" autocomplete="name" required></label>
       <label class="champ"><span>Votre téléphone</span><input id="tel" type="tel" maxlength="20" autocomplete="tel" inputmode="tel" placeholder="Ex. 6 59 49 49 08" required></label>
-      <label class="champ"><span>Prestation souhaitée</span>
-        <select id="presta"><option value="">Chargement…</option></select></label>
+      <div class="champ"><span id="lPresta">Prestation souhaitée</span>
+        <select id="presta" class="natif" tabindex="-1" aria-hidden="true"><option value="">Chargement…</option></select>
+        <button type="button" id="prestaBtn" class="faux vide" aria-haspopup="dialog" aria-labelledby="lPresta prestaBtn" disabled>Chargement…</button></div>
       <label class="champ" id="autreBloc" style="display:none"><span>Précisez la prestation</span><input id="autre" maxlength="100"></label>
       <div class="deux">
-        <label class="champ"><span>Date souhaitée</span><input id="date" type="date"></label>
-        <label class="champ"><span>Heure souhaitée</span><input id="heure" type="time"></label>
+        <div class="champ"><span id="lDate">Date souhaitée</span><input id="date" type="hidden">
+          <button type="button" id="dateBtn" class="faux vide" aria-haspopup="dialog" aria-labelledby="lDate dateBtn">Choisir une date</button></div>
+        <div class="champ"><span id="lHeure">Heure souhaitée</span><input id="heure" type="hidden">
+          <button type="button" id="heureBtn" class="faux vide" aria-haspopup="dialog" aria-labelledby="lHeure heureBtn">Choisir une heure</button></div>
       </div>
       <p id="momentTxt" class="compteur" style="text-align:left;margin:-8px 0 12px" aria-live="polite"></p>
       <p id="conflit" role="alert"></p>
@@ -125,6 +162,109 @@ function majWhatsApp() {
 majWhatsApp();
 $('#date').min = new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 10);
 
+/* ===== Sélecteurs personnalisés (aux couleurs du salon) ===== */
+const esc = v => String(v ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const isoLocal = d => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+const prixFr = n => new Intl.NumberFormat('fr-FR').format(n).replace(/[\u202f\u00a0]/g, ' ');
+let feuilleRetour = null;
+function ouvrirFeuille(titre, html) {
+  fermerFeuille(true);
+  const o = document.createElement('div'); o.id = 'feuille'; o.className = 'fe';
+  o.innerHTML = `<div class="fe-fond" data-fermer></div><div class="fe-panneau" role="dialog" aria-modal="true" aria-label="${titre}"><div class="fe-tete"><h2>${titre}</h2><button type="button" class="fe-x" data-fermer aria-label="Fermer">×</button></div><div class="fe-corps">${html}</div></div>`;
+  feuilleRetour = document.activeElement;
+  document.body.appendChild(o); document.body.style.overflow = 'hidden';
+  o.addEventListener('click', e => { if (e.target.closest('[data-fermer]')) fermerFeuille(); });
+  const sel = o.querySelector('.on:not([disabled]), button:not([disabled]):not(.fe-x)'); if (sel) sel.focus({ preventScroll: true });
+  const on = o.querySelector('.on'); if (on) on.scrollIntoView({ block: 'center' });
+  return o;
+}
+function fermerFeuille(sansRetour) {
+  const o = $('#feuille'); if (!o) return;
+  o.remove(); document.body.style.overflow = '';
+  if (!sansRetour && feuilleRetour && feuilleRetour.focus) feuilleRetour.focus();
+}
+document.addEventListener('keydown', e => { if (e.key === 'Escape') fermerFeuille(); });
+
+function majBoutons() {
+  const p = $('#presta').value, d = $('#date').value, h = $('#heure').value;
+  const set = (id, txt, vide) => { const b = $(id); b.textContent = txt; b.classList.toggle('vide', vide); };
+  set('#prestaBtn', p === '__autre' ? 'Autre (à préciser)' : (p || 'Choisir une prestation'), !p);
+  set('#dateBtn', d ? new Date(d + 'T12:00:00').toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }) : 'Choisir une date', !d);
+  set('#heureBtn', h ? `${h} · ${moment(h)}` : 'Choisir une heure', !h);
+}
+
+function ouvrirPresta() {
+  const sel = $('#presta');
+  const ligne = o => `<button type="button" class="fe-ligne ${o.value === sel.value ? 'on' : ''}" data-v="${esc(o.value)}"><span>${esc(o.value === '__autre' ? 'Autre (à préciser)' : o.value)}</span>${+o.dataset.prix ? `<small>dès ${prixFr(+o.dataset.prix)} FCFA</small>` : ''}</button>`;
+  let html = '';
+  [...sel.children].forEach(ch => {
+    if (ch.tagName === 'OPTGROUP') html += `<h3 class="fe-groupe">${esc(ch.label)}</h3>` + [...ch.children].map(ligne).join('');
+    else if (ch.value) html += (ch.value === '__autre' ? '<h3 class="fe-groupe">Autre</h3>' : '') + ligne(ch);
+  });
+  const o = ouvrirFeuille('Choisir une prestation', html);
+  o.addEventListener('click', e => {
+    const b = e.target.closest('[data-v]'); if (!b) return;
+    sel.value = b.dataset.v; sel.dispatchEvent(new Event('change')); majBoutons(); fermerFeuille();
+  });
+}
+
+function ouvrirCalendrier() {
+  const courant = $('#date').value, base = courant ? new Date(courant + 'T12:00:00') : new Date();
+  let an = base.getFullYear(), mo = base.getMonth();
+  const auj = new Date(), ajd = isoLocal(auj), limiteD = new Date(auj.getFullYear(), auj.getMonth(), auj.getDate() + 180), limite = isoLocal(limiteD);
+  ouvrirFeuille('Choisir la date', '<div id="cal"></div>');
+  const dessiner = () => {
+    const premier = new Date(an, mo, 1), nb = new Date(an, mo + 1, 0).getDate(), decal = (premier.getDay() + 6) % 7;
+    const libMois = premier.toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' });
+    const precHors = an === auj.getFullYear() && mo === auj.getMonth(), suivHors = new Date(an, mo + 1, 1) > limiteD;
+    let h = `<div class="cal-tete"><button type="button" class="cal-nav" data-nav="-1" aria-label="Mois précédent" ${precHors ? 'disabled' : ''}>‹</button><b>${esc(libMois)}</b><button type="button" class="cal-nav" data-nav="1" aria-label="Mois suivant" ${suivHors ? 'disabled' : ''}>›</button></div><div class="cal-grille">`;
+    ['L', 'M', 'M', 'J', 'V', 'S', 'D'].forEach(j => { h += `<span class="cal-jour-nom" aria-hidden="true">${j}</span>`; });
+    for (let i = 0; i < decal; i++) h += '<span></span>';
+    for (let j = 1; j <= nb; j++) {
+      const d = `${an}-${String(mo + 1).padStart(2, '0')}-${String(j).padStart(2, '0')}`, hors = d < ajd || d > limite;
+      const nom = new Date(d + 'T12:00:00').toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' });
+      h += `<button type="button" class="cal-j ${d === ajd ? 'auj' : ''} ${d === courant ? 'on' : ''}" data-j="${d}" aria-label="${esc(nom)}" ${d === courant ? 'aria-pressed="true"' : ''} ${hors ? 'disabled' : ''}>${j}</button>`;
+    }
+    $('#cal').innerHTML = h + '</div>';
+  };
+  dessiner();
+  $('#cal').addEventListener('click', e => {
+    const n = e.target.closest('[data-nav]'), j = e.target.closest('[data-j]');
+    if (n && !n.disabled) {
+      mo += +n.dataset.nav; if (mo < 0) { mo = 11; an--; } if (mo > 11) { mo = 0; an++; }
+      dessiner(); const b = $(`#cal [data-nav="${n.dataset.nav}"]:not([disabled])`); if (b) b.focus();
+    }
+    if (j && !j.disabled) { $('#date').value = j.dataset.j; $('#date').dispatchEvent(new Event('change')); majBoutons(); fermerFeuille(); }
+  });
+}
+
+async function ouvrirHeure() {
+  const d = $('#date').value;
+  if (!d) {
+    const o = ouvrirFeuille('Choisir l\'heure', '<p class="note-fe">Choisissez d\'abord la date pour voir les heures disponibles.</p><button type="button" class="fe-ligne" id="versDate"><b>Choisir la date</b></button>');
+    o.querySelector('#versDate').addEventListener('click', () => { fermerFeuille(true); ouvrirCalendrier(); });
+    return;
+  }
+  if (dateDispo !== d) await chargerDispo();
+  const dur = dureeChoisie(), ouv = vers(reglages.ouverture), fer = vers(reglages.fermeture), maint = new Date();
+  const aujourdhui = d === isoLocal(maint), nowM = maint.getHours() * 60 + maint.getMinutes(), choisie = $('#heure').value;
+  const cand = new Set();
+  for (let t = ouv; t + 30 <= fer; t += 30) cand.add(t);
+  occupes.forEach(([, f]) => { if (f + 30 <= fer) cand.add(f); });
+  const boutons = [...cand].sort((a, c) => a - c).map(t => {
+    const bloque = (aujourdhui && t <= nowM) || t + dur > fer || (dispoOK && conflitAvec(t, dur));
+    return `<button type="button" class="heure-b ${choisie === versHM(t) ? 'on' : ''}" data-h="${versHM(t)}" ${bloque ? 'disabled' : ''}>${versHM(t)}</button>`;
+  }).join('');
+  const o = ouvrirFeuille('Choisir l\'heure', `<p class="note-fe">Les heures barrées sont déjà prises, ou trop tardives pour une prestation d'environ ${libDuree(dur)}.</p><div class="heures">${boutons}</div>`);
+  o.querySelector('.heures').addEventListener('click', e => {
+    const x = e.target.closest('[data-h]'); if (!x || x.disabled) return;
+    $('#heure').value = x.dataset.h; $('#heure').dispatchEvent(new Event('input')); fermerFeuille();
+  });
+}
+$('#prestaBtn').addEventListener('click', ouvrirPresta);
+$('#dateBtn').addEventListener('click', ouvrirCalendrier);
+$('#heureBtn').addEventListener('click', ouvrirHeure);
+
 async function charger() {
   try {
     const r = await getDoc(doc(db, 'reglagesPublics', 'salon'));
@@ -140,11 +280,12 @@ async function charger() {
       const l = liste.filter(s => (s.categorie || 'Autre') === c);
       if (!l.length) return;
       const g = document.createElement('optgroup'); g.label = c;
-      l.forEach(s => { const o = document.createElement('option'); o.value = s.nom; o.dataset.duree = s.duree || 60; o.textContent = s.prix ? `${s.nom} · dès ${prix(s.prix)} FCFA` : s.nom; g.appendChild(o); });
+      l.forEach(s => { const o = document.createElement('option'); o.value = s.nom; o.dataset.duree = s.duree || 60; o.dataset.prix = s.prix || 0; o.textContent = s.prix ? `${s.nom} · dès ${prix(s.prix)} FCFA` : s.nom; g.appendChild(o); });
       sel.appendChild(g);
     });
   } catch (e) { sel.innerHTML = '<option value="">Choisir une prestation</option>'; }
   const autre = document.createElement('option'); autre.value = '__autre'; autre.textContent = 'Autre (à préciser)'; sel.appendChild(autre);
+  $('#prestaBtn').disabled = false; majBoutons();
 }
 charger();
 
@@ -210,14 +351,15 @@ function moment(h) {
   const m = +h.slice(0, 2) * 60 + +h.slice(3, 5);
   return m < 720 ? 'matin' : m < 840 ? 'midi' : m < 1020 ? 'après-midi' : 'fin de journée';
 }
-$('#heure').addEventListener('input', e => { const m = moment(e.target.value); $('#momentTxt').textContent = m ? `Moment de la journée : ${m}` : ''; verifierHeure(); afficherDispo(); });
+$('#heure').addEventListener('input', e => { const m = moment(e.target.value); $('#momentTxt').textContent = m ? `Moment de la journée : ${m}` : ''; verifierHeure(); afficherDispo(); majBoutons(); });
 $('#msg').addEventListener('input', e => { $('#cpt').textContent = e.target.value.length; });
 
+const MAX_PAR_JOUR = 10, ATTENTE_MS = 30000;
 function limiter() {
   const k = 'bm_envois', h = Date.now(), liste = JSON.parse(localStorage.getItem(k) || '[]').filter(t => h - t < 86400000);
-  if (liste.length >= 3) return false;
-  if (liste.length && h - liste[liste.length - 1] < 120000) return false;
-  return liste;
+  if (liste.length >= MAX_PAR_JOUR) return { bloque: 'Vous avez atteint le nombre maximum de demandes pour aujourd\'hui. Écrivez-nous sur WhatsApp.' };
+  if (liste.length && h - liste[liste.length - 1] < ATTENTE_MS) return { bloque: `Merci de patienter ${Math.ceil((ATTENTE_MS - (h - liste[liste.length - 1])) / 1000)} secondes avant un nouvel envoi.` };
+  return { liste };
 }
 
 $('#f').addEventListener('submit', async e => {
@@ -228,13 +370,14 @@ $('#f').addEventListener('submit', async e => {
   if (prestation === '__autre') prestation = $('#autre').value.trim();
   if (nom.length < 2) { err.textContent = 'Indiquez votre nom.'; return $('#nom').focus(); }
   if (!/^[0-9+\s().-]{8,20}$/.test(tel)) { err.textContent = 'Indiquez un numéro de téléphone valide (8 chiffres minimum).'; return $('#tel').focus(); }
-  if (!prestation) { err.textContent = 'Choisissez ou précisez la prestation souhaitée.'; return $('#presta').focus(); }
+  if (!prestation) { err.textContent = 'Choisissez ou précisez la prestation souhaitée.'; return $('#prestaBtn').focus(); }
   const conflit = messageConflit();
-  if (conflit) { err.textContent = conflit; return $('#heure').focus(); }
+  if (conflit) { err.textContent = conflit; return $('#heureBtn').focus(); }
   // Protection anti-robots : champ piège rempli ou envoi trop rapide
   if ($('#site').value || Date.now() - ouverture < 3000) { return afficherMerci(); }
-  const liste = limiter();
-  if (liste === false) { err.textContent = 'Vous avez déjà envoyé une demande. Patientez quelques minutes ou écrivez-nous sur WhatsApp.'; return; }
+  const lim = limiter();
+  if (lim.bloque) { err.textContent = lim.bloque; return; }
+  const liste = lim.liste;
   const btn = $('#envoi'); btn.disabled = true; btn.textContent = 'Envoi en cours…';
   const h = $('#heure').value, dateSouhaitee = [$('#date').value, h ? `${$('#date').value ? 'à ' : ''}${h} (${moment(h)})` : ''].filter(Boolean).join(' ').slice(0, 40);
   const message = $('#msg').value.trim().slice(0, 500);
@@ -257,7 +400,7 @@ $('#f').addEventListener('submit', async e => {
 });
 function afficherMerci() { $('#formulaire').style.display = 'none'; $('#merci').style.display = 'block'; window.scrollTo(0, 0); }
 $('#nouvelle').addEventListener('click', () => {
-  $('#f').reset(); $('#cpt').textContent = '0'; $('#momentTxt').textContent = ''; $('#conflit').textContent = ''; $('#dispo').innerHTML = ''; dateDispo = ''; $('#autreBloc').style.display = 'none';
+  $('#f').reset(); $('#date').value = ''; $('#heure').value = ''; majBoutons(); $('#cpt').textContent = '0'; $('#momentTxt').textContent = ''; $('#conflit').textContent = ''; $('#dispo').innerHTML = ''; dateDispo = ''; $('#autreBloc').style.display = 'none';
   const b = $('#envoi'); b.disabled = false; b.textContent = 'Envoyer ma demande';
   $('#merci').style.display = 'none'; $('#formulaire').style.display = 'block';
 });
