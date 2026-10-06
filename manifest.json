@@ -20,5 +20,7 @@
       "purpose": "any"
     }
   ],
-  "lang": "fr"
+  "lang": "fr",
+  "id": "./index.html",
+  "prefer_related_applications": false
 }
