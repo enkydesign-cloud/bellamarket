@@ -54,6 +54,7 @@ const S = {
   clients: [], services: [], rdv: [], paiements: [], demandes: [], reglages: { ...DEFAUTS }
 };
 let unsubs = [];
+let publicsSync = false, creneauxSync = false;
 
 /* ===== Icônes et navigation ===== */
 const ICON = {
@@ -219,6 +220,13 @@ function vueAgenda() {
   <section class="panneau">${liste.length ? `<ul class="liste">${liste.map(ligneRdv).join('')}</ul>` : '<p class="vide">Aucun rendez-vous ce jour. Ajoutez-en un avec le bouton « Nouveau rendez-vous ».</p>'}</section>`;
 }
 
+/* ===== Créneaux publics (heures prises, sans aucun nom) ===== */
+async function majCreneau(id, d) {
+  if (!id) return;
+  if (d.statut === 'annule') { await deleteDoc(doc(db, 'creneaux', id)); return; }
+  await setDoc(doc(db, 'creneaux', id), { date: d.date, debut: d.heure, fin: toHM(toMin(d.heure) + (+d.duree || 0)) });
+}
+
 /* ===== Fenêtre rendez-vous ===== */
 function modalRdv(r = {}, pre = {}) {
   const e = Object.assign({ date: S.agDate, heure: '09:00', duree: 60, prix: 0, prestation: '', statut: 'confirme', clientId: '', serviceId: '', notes: '' }, r, pre);
@@ -260,8 +268,10 @@ async function sauverRdv(id, demandeId) {
   } else clientNom = (clientParId(clientId) || {}).nom || '';
   const ancien = S.rdv.find(x => x.id === id);
   const data = { clientId, clientNom, serviceId: $('#rService').value, prestation, prix, duree, date, heure, statut, notes: $('#rNotes').value.trim() };
+  let rid = id;
   if (id) await updateDoc(doc(db, 'rdv', id), data);
-  else await addDoc(collection(db, 'rdv'), { ...data, paye: false, createdAt: serverTimestamp() });
+  else rid = (await addDoc(collection(db, 'rdv'), { ...data, paye: false, createdAt: serverTimestamp() })).id;
+  await majCreneau(rid, data);
   if (demandeId) await updateDoc(doc(db, 'demandes', demandeId), { statut: 'traitee' });
   if (ancien) localStorage.removeItem(`bm_rappel_${id}_${ancien.date}_${ancien.heure}`);
   S.agDate = date;
@@ -483,10 +493,11 @@ const ACT = {
   statut: async el => {
     const r = S.rdv.find(x => x.id === el.dataset.id), val = el.dataset.val;
     await updateDoc(doc(db, 'rdv', r.id), { statut: val });
+    await majCreneau(r.id, { ...r, statut: val });
     if (val === 'termine' && !r.paye && confirm('Rendez-vous terminé. Encaisser maintenant ?')) modalPaiement({ rdvId: r.id, clientId: r.clientId, clientNom: r.clientNom, prestation: r.prestation, montant: r.prix, date: today() });
   },
   encaisser: el => { const r = S.rdv.find(x => x.id === el.dataset.id); modalPaiement({ rdvId: r.id, clientId: r.clientId, clientNom: r.clientNom, prestation: r.prestation, montant: r.prix, date: today() }); },
-  supRdv: async el => { if (confirm('Supprimer ce rendez-vous ?')) { await deleteDoc(doc(db, 'rdv', el.dataset.id)); toast('Rendez-vous supprimé'); } },
+  supRdv: async el => { if (confirm('Supprimer ce rendez-vous ?')) { await deleteDoc(doc(db, 'rdv', el.dataset.id)); await deleteDoc(doc(db, 'creneaux', el.dataset.id)); toast('Rendez-vous supprimé'); } },
   /* Clientes */
   nvClient: () => modalClient(),
   edClient: el => modalClient(clientParId(el.dataset.id)),
@@ -527,7 +538,7 @@ const ACT = {
     const r = { nomSalon: $('#sNom').value.trim() || 'Bella Market', emailNotif: $('#sEmail').value.trim(), whatsapp: $('#sWa').value.trim(), ouverture: $('#sOuv').value || '08:00', fermeture: $('#sFer').value || '19:00', rappelMin: +$('#sRap').value || 15 };
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(r.emailNotif)) return toast('Adresse e-mail invalide.');
     await setDoc(doc(db, 'reglages', 'salon'), r, { merge: true });
-    await setDoc(doc(db, 'reglagesPublics', 'salon'), { emailNotif: r.emailNotif, whatsapp: r.whatsapp, nomSalon: r.nomSalon }, { merge: true });
+    await setDoc(doc(db, 'reglagesPublics', 'salon'), { emailNotif: r.emailNotif, whatsapp: r.whatsapp, nomSalon: r.nomSalon, ouverture: r.ouverture, fermeture: r.fermeture }, { merge: true });
     toast('Réglages enregistrés');
   },
   testSon: () => { audio(); sonner('rdv', true); },
@@ -556,7 +567,10 @@ document.addEventListener('input', e => {
 /* ===== Données en direct ===== */
 function ecouter() {
   unsubs.forEach(f => f()); unsubs = [];
-  const col = (nom, cle) => onSnapshot(collection(db, nom), snap => { S[cle] = snap.docs.map(d => ({ id: d.id, ...d.data() })); render(); }, erreur);
+  const col = (nom, cle) => onSnapshot(collection(db, nom), snap => {
+    S[cle] = snap.docs.map(d => ({ id: d.id, ...d.data() })); render();
+    if (cle === 'rdv' && !creneauxSync) { creneauxSync = true; S.rdv.filter(r => r.date >= today() && r.statut !== 'annule').forEach(r => majCreneau(r.id, r).catch(() => {})); }
+  }, erreur);
   unsubs.push(col('clients', 'clients'), col('services', 'services'), col('rdv', 'rdv'), col('paiements', 'paiements'));
   let premier = true;
   unsubs.push(onSnapshot(collection(db, 'demandes'), snap => {
@@ -565,10 +579,12 @@ function ecouter() {
     premier = false; render();
   }, erreur));
   unsubs.push(onSnapshot(doc(db, 'reglages', 'salon'), s => {
-    if (s.exists()) S.reglages = { ...DEFAUTS, ...s.data() };
-    else {
+    if (s.exists()) {
+      S.reglages = { ...DEFAUTS, ...s.data() };
+      if (!publicsSync) { publicsSync = true; const r = S.reglages; setDoc(doc(db, 'reglagesPublics', 'salon'), { emailNotif: r.emailNotif, whatsapp: r.whatsapp, nomSalon: r.nomSalon, ouverture: r.ouverture, fermeture: r.fermeture }, { merge: true }).catch(() => {}); }
+    } else {
       setDoc(doc(db, 'reglages', 'salon'), DEFAUTS).catch(erreur);
-      setDoc(doc(db, 'reglagesPublics', 'salon'), { emailNotif: DEFAUTS.emailNotif, whatsapp: DEFAUTS.whatsapp, nomSalon: DEFAUTS.nomSalon }).catch(erreur);
+      setDoc(doc(db, 'reglagesPublics', 'salon'), { emailNotif: DEFAUTS.emailNotif, whatsapp: DEFAUTS.whatsapp, nomSalon: DEFAUTS.nomSalon, ouverture: DEFAUTS.ouverture, fermeture: DEFAUTS.fermeture }).catch(erreur);
     }
     render();
   }, erreur));
