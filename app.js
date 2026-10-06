@@ -99,7 +99,119 @@ function ouvrir(html) {
   m.classList.add('on');
 }
 function fermer() { const m = $('#modal'); m.classList.remove('on'); m.innerHTML = ''; }
-document.addEventListener('keydown', e => { if (e.key === 'Escape') fermer(); });
+document.addEventListener('keydown', e => { if (e.key === 'Escape') { if ($('#feuille')) fermerFeuille(); else fermer(); } });
+
+
+/* ===== Sélecteurs personnalisés (aux couleurs du salon) ===== */
+const PICK = {};
+let feuilleRetour = null;
+const itemsDuree = v => { v = +v || 60; return (DUREES.includes(v) ? DUREES : [...DUREES, v].sort((a, b) => a - b)).map(d => ({ v: d, t: fmtDuree(d) })); };
+function ouvrirFeuille(titre, html) {
+  fermerFeuille(true);
+  const o = document.createElement('div'); o.id = 'feuille'; o.className = 'fe';
+  o.innerHTML = `<div class="fe-fond" data-fermer></div><div class="fe-panneau" role="dialog" aria-modal="true" aria-label="${esc(titre)}"><div class="fe-tete"><h2>${esc(titre)}</h2><button type="button" class="fe-x" data-fermer aria-label="Fermer">×</button></div><div class="fe-corps">${html}</div></div>`;
+  feuilleRetour = document.activeElement;
+  document.body.appendChild(o);
+  o.addEventListener('click', e => { if (e.target.closest('[data-fermer]')) fermerFeuille(); });
+  const f = o.querySelector('.on, .fe-ligne, .heure-b, .cal-j:not([disabled])'); if (f) f.focus({ preventScroll: true });
+  const on = o.querySelector('.on'); if (on) on.scrollIntoView({ block: 'center' });
+  return o;
+}
+function fermerFeuille(sansRetour) {
+  const o = $('#feuille'); if (!o) return;
+  o.remove();
+  if (!sansRetour && feuilleRetour && feuilleRetour.focus && document.contains(feuilleRetour)) feuilleRetour.focus({ preventScroll: true });
+}
+function setPick(id, v) {
+  const inp = $('#' + id), btn = $('#' + id + 'Btn'), p = PICK[id]; if (!inp || !p) return;
+  v = String(v ?? ''); inp.value = v;
+  let txt, vide = !v;
+  if (p.type === 'date') txt = v ? dateLongue(v) : 'Choisir une date';
+  else if (p.type === 'heure') txt = v || 'Choisir une heure';
+  else {
+    let it = p.items.find(i => String(i.v) === v);
+    if (!it && v && p.dyn) { it = { v, t: p.dyn(v) }; p.items.push(it); }
+    txt = it ? it.t : p.vide; vide = !it;
+  }
+  if (btn) { btn.textContent = txt; btn.classList.toggle('vide', vide); }
+}
+function choisir(id, v) { setPick(id, v); $('#' + id).dispatchEvent(new Event('change', { bubbles: true })); }
+function selecteur(id, items, valeur, o = {}) {
+  PICK[id] = { type: 'select', titre: o.titre || 'Choisir', items, vide: o.vide || 'Choisir', dyn: o.dyn };
+  const it = items.find(i => String(i.v) === String(valeur ?? ''));
+  return `<input type="hidden" id="${id}" value="${esc(valeur ?? '')}"><button type="button" class="faux ${it ? '' : 'vide'}" id="${id}Btn" data-act="pick" data-id="${id}" aria-haspopup="dialog">${esc(it ? it.t : (o.vide || 'Choisir'))}</button>`;
+}
+function dateur(id, valeur, o = {}) {
+  PICK[id] = { type: 'date', titre: o.titre || 'Choisir la date', marques: o.marques || '' };
+  return `<input type="hidden" id="${id}" value="${esc(valeur || '')}" ${o.attrs || ''}><button type="button" class="faux ${valeur ? '' : 'vide'}" id="${id}Btn" data-act="pickDate" data-id="${id}" aria-haspopup="dialog">${esc(valeur ? dateLongue(valeur) : 'Choisir une date')}</button>`;
+}
+function heureur(id, valeur, o = {}) {
+  PICK[id] = { type: 'heure', titre: o.titre || "Choisir l'heure", ctx: o.ctx || 'libre' };
+  return `<input type="hidden" id="${id}" value="${esc(valeur || '')}"><button type="button" class="faux ${valeur ? '' : 'vide'}" id="${id}Btn" data-act="pickHeure" data-id="${id}" aria-haspopup="dialog">${esc(valeur || 'Choisir une heure')}</button>`;
+}
+function ouvrirListe(titre, items, courant, onPick) {
+  let corps = items.length > 8 ? '<input type="search" class="fe-recherche" placeholder="Rechercher" aria-label="Rechercher">' : '', groupe = null;
+  items.forEach((it, i) => {
+    if (it.groupe && it.groupe !== groupe) { groupe = it.groupe; corps += `<h3 class="fe-groupe" data-g>${esc(groupe)}</h3>`; }
+    corps += `<button type="button" class="fe-ligne ${String(it.v) === String(courant) ? 'on' : ''}" data-i="${i}" data-t="${esc((it.t + ' ' + (it.sous || '')).toLowerCase())}"><span>${esc(it.t)}</span>${it.sous ? `<small>${esc(it.sous)}</small>` : ''}</button>`;
+  });
+  const o = ouvrirFeuille(titre, corps);
+  o.addEventListener('click', e => { const b = e.target.closest('[data-i]'); if (!b) return; fermerFeuille(); onPick(items[+b.dataset.i]); });
+  const r = o.querySelector('.fe-recherche');
+  if (r) r.addEventListener('input', () => {
+    const q = r.value.trim().toLowerCase();
+    o.querySelectorAll('.fe-ligne').forEach(l => { l.style.display = !q || l.dataset.t.includes(q) ? '' : 'none'; });
+    o.querySelectorAll('[data-g]').forEach(g => { let n = g.nextElementSibling, vis = false; while (n && !n.hasAttribute('data-g')) { if (n.classList.contains('fe-ligne') && n.style.display !== 'none') vis = true; n = n.nextElementSibling; } g.style.display = vis ? '' : 'none'; });
+  });
+  return o;
+}
+function ouvrirSelecteur(id) { const p = PICK[id]; ouvrirListe(p.titre, p.items, $('#' + id).value, it => choisir(id, it.v)); }
+function ouvrirDate(id) {
+  const p = PICK[id], courant = $('#' + id).value, base = courant ? new Date(courant + 'T12:00:00') : new Date();
+  let an = base.getFullYear(), mo = base.getMonth();
+  const ajd = today();
+  const marques = p.marques === 'rdv' ? new Set(S.rdv.filter(r => r.statut !== 'annule').map(r => r.date)) : p.marques === 'paiements' ? new Set(S.paiements.map(x => x.date)) : new Set();
+  const legende = p.marques === 'rdv' ? 'Les points indiquent les jours avec des rendez-vous.' : p.marques === 'paiements' ? 'Les points indiquent les jours avec des encaissements.' : '';
+  ouvrirFeuille(p.titre, `<div id="cal"></div>${legende ? `<p class="note-fe">${legende}</p>` : ''}<button type="button" class="btn sec petit" data-auj>Aujourd'hui</button>`);
+  const dessiner = () => {
+    const premier = new Date(an, mo, 1), nb = new Date(an, mo + 1, 0).getDate(), decal = (premier.getDay() + 6) % 7;
+    let h = `<div class="cal-tete"><button type="button" class="cal-nav" data-nav="-1" aria-label="Mois précédent">‹</button><b>${esc(premier.toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' }))}</b><button type="button" class="cal-nav" data-nav="1" aria-label="Mois suivant">›</button></div><div class="cal-grille">`;
+    ['L', 'M', 'M', 'J', 'V', 'S', 'D'].forEach(j => { h += `<span class="cal-jour-nom" aria-hidden="true">${j}</span>`; });
+    for (let i = 0; i < decal; i++) h += '<span></span>';
+    for (let j = 1; j <= nb; j++) {
+      const d = `${an}-${String(mo + 1).padStart(2, '0')}-${String(j).padStart(2, '0')}`;
+      h += `<button type="button" class="cal-j ${d === ajd ? 'auj' : ''} ${d === courant ? 'on' : ''} ${marques.has(d) ? 'a' : ''}" data-j="${d}" aria-label="${esc(dateLongue(d))}" ${d === courant ? 'aria-pressed="true"' : ''}>${j}</button>`;
+    }
+    $('#cal').innerHTML = h + '</div>';
+  };
+  dessiner();
+  const feuille = $('#feuille');
+  feuille.addEventListener('click', e => {
+    const n = e.target.closest('[data-nav]'), j = e.target.closest('[data-j]');
+    if (n) { mo += +n.dataset.nav; if (mo < 0) { mo = 11; an--; } if (mo > 11) { mo = 0; an++; } dessiner(); const b = $(`#cal [data-nav="${n.dataset.nav}"]`); if (b) b.focus(); }
+    if (j) { fermerFeuille(); choisir(id, j.dataset.j); }
+    if (e.target.closest('[data-auj]')) { fermerFeuille(); choisir(id, ajd); }
+  });
+}
+function ouvrirHeureApp(id) {
+  const p = PICK[id], choisie = $('#' + id).value;
+  let occ = [], dur = 60;
+  if (p.ctx === 'rdv') {
+    const date = $('#rDate').value, bouton = $('#modal [data-act="sauverRdv"]'), editId = bouton ? bouton.dataset.id : '';
+    dur = +$('#rDuree').value || 60;
+    occ = S.rdv.filter(r => r.date === date && r.statut !== 'annule' && r.id !== editId).map(r => [toMin(r.heure), toMin(r.heure) + (+r.duree || 0)]);
+  }
+  const cand = new Set();
+  for (let t = 300; t <= 1410; t += 30) cand.add(t);
+  occ.forEach(([, f]) => { if (f < 1440) cand.add(f); });
+  if (choisie) cand.add(toMin(choisie));
+  const boutons = [...cand].sort((a, b) => a - b).map(t => {
+    const pris = occ.some(([a, b]) => t < b && t + dur > a);
+    return `<button type="button" class="heure-b ${choisie === toHM(t) ? 'on' : ''} ${pris ? 'pris' : ''}" data-h="${toHM(t)}">${toHM(t)}</button>`;
+  }).join('');
+  const o = ouvrirFeuille(p.titre, (p.ctx === 'rdv' ? '<p class="note-fe">Les heures barrées chevauchent un autre rendez-vous (vous pouvez les choisir quand même).</p>' : '') + `<div class="heures">${boutons}</div>`);
+  o.querySelector('.heures').addEventListener('click', e => { const x = e.target.closest('[data-h]'); if (!x) return; fermerFeuille(); choisir(id, x.dataset.h); });
+}
 
 /* ===== Son ===== */
 let ctx = null;
@@ -212,7 +324,7 @@ function vueAgenda() {
   <header class="entete"><h1>Agenda</h1><button class="btn" data-act="nvRdv">Nouveau rendez-vous</button></header>
   <div class="barre-date">
     <button class="btn sec" data-act="agJour" data-d="-1" aria-label="Jour précédent">‹</button>
-    <input type="date" id="agDate" value="${esc(d)}" data-change="agDate" aria-label="Choisir une date">
+    ${dateur('agDate', d, { marques: 'rdv', attrs: 'data-change="agDate"', titre: 'Choisir la date' })}
     <button class="btn sec" data-act="agJour" data-d="1" aria-label="Jour suivant">›</button>
     <button class="btn sec" data-act="agJour" data-d="0">Aujourd'hui</button>
   </div>
@@ -233,18 +345,18 @@ function modalRdv(r = {}, pre = {}) {
   const clients = [...S.clients].sort((a, b) => (a.nom || '').localeCompare(b.nom || ''));
   const nouveau = !!pre.nouveauNom;
   ouvrir(`<h2>${r.id ? 'Modifier le rendez-vous' : 'Nouveau rendez-vous'}</h2>
-    <label class="champ"><span>Cliente</span><select id="rClient"><option value="">Choisir une cliente</option>${clients.map(c => `<option value="${esc(c.id)}" ${c.id === e.clientId && !nouveau ? 'selected' : ''}>${esc(c.nom)}</option>`).join('')}<option value="new" ${nouveau ? 'selected' : ''}>+ Nouvelle cliente</option></select></label>
+    <label class="champ"><span>Cliente</span>${selecteur('rClient', [...clients.map(c => ({ v: c.id, t: c.nom, sous: c.telephone || '' })), { v: 'new', t: '+ Nouvelle cliente' }], nouveau ? 'new' : e.clientId, { titre: 'Choisir la cliente', vide: 'Choisir une cliente' })}</label>
     <div id="rNew" style="display:${nouveau ? 'block' : 'none'}"><div class="deux-champs">
       <label class="champ"><span>Nom</span><input id="rNom" maxlength="80" value="${esc(pre.nouveauNom || '')}"></label>
       <label class="champ"><span>Téléphone</span><input id="rTel" type="tel" maxlength="20" value="${esc(pre.nouveauTel || '')}"></label></div></div>
-    <label class="champ"><span>Service</span><select id="rService"><option value="">Prestation libre</option>${S.services.map(s => `<option value="${esc(s.id)}" ${s.id === e.serviceId ? 'selected' : ''}>${esc(s.nom)}</option>`).join('')}</select></label>
+    <label class="champ"><span>Service</span>${selecteur('rService', [{ v: '', t: 'Prestation libre' }, ...[...S.services].sort((a, b) => CATEGORIES.indexOf(a.categorie || 'Autre') - CATEGORIES.indexOf(b.categorie || 'Autre') || (a.nom || '').localeCompare(b.nom || '')).map(sv => ({ v: sv.id, t: sv.nom, groupe: sv.categorie || 'Autre', sous: sv.prix ? fcfa(sv.prix) : '' }))], e.serviceId || '', { titre: 'Choisir le service' })}</label>
     <label class="champ"><span>Prestation</span><input id="rPresta" maxlength="100" value="${esc(e.prestation)}"></label>
     <div class="deux-champs">
       <label class="champ"><span>Prix (FCFA)</span><input id="rPrix" type="number" min="0" step="100" value="${esc(e.prix)}"></label>
-      <label class="champ"><span>Durée</span><select id="rDuree">${optsDuree(e.duree)}</select></label>
-      <label class="champ"><span>Date</span><input id="rDate" type="date" value="${esc(e.date)}"></label>
-      <label class="champ"><span>Heure</span><input id="rHeure" type="time" value="${esc(e.heure)}"></label></div>
-    <label class="champ"><span>Statut</span><select id="rStatut">${Object.entries(STATUTS).map(([k, v]) => `<option value="${k}" ${k === e.statut ? 'selected' : ''}>${v}</option>`).join('')}</select></label>
+      <label class="champ"><span>Durée</span>${selecteur('rDuree', itemsDuree(e.duree), e.duree, { titre: 'Choisir la durée', dyn: v => fmtDuree(+v) })}</label>
+      <label class="champ"><span>Date</span>${dateur('rDate', e.date, { marques: 'rdv' })}</label>
+      <label class="champ"><span>Heure</span>${heureur('rHeure', e.heure, { ctx: 'rdv' })}</label></div>
+    <label class="champ"><span>Statut</span>${selecteur('rStatut', Object.entries(STATUTS).map(([k, v]) => ({ v: k, t: v })), e.statut, { titre: 'Choisir le statut' })}</label>
     <label class="champ"><span>Notes</span><textarea id="rNotes" maxlength="300">${esc(e.notes)}</textarea></label>
     <div class="pied"><button class="btn sec" data-act="fermer">Annuler</button><button class="btn" data-act="sauverRdv" data-id="${esc(r.id || '')}" data-demande="${esc(pre.demandeId || '')}">Enregistrer</button></div>`);
 }
@@ -333,10 +445,10 @@ function vueServices() {
 function modalService(s = {}) {
   ouvrir(`<h2>${s.id ? 'Modifier la prestation' : 'Nouvelle prestation'}</h2>
     <label class="champ"><span>Nom</span><input id="sNomS" maxlength="100" value="${esc(s.nom || '')}"></label>
-    <label class="champ"><span>Catégorie</span><select id="sCat">${CATEGORIES.map(c => `<option ${c === (s.categorie || 'Coiffure') ? 'selected' : ''}>${c}</option>`).join('')}</select></label>
+    <label class="champ"><span>Catégorie</span>${selecteur('sCat', CATEGORIES.map(c => ({ v: c, t: c })), s.categorie || 'Coiffure', { titre: 'Choisir la catégorie' })}</label>
     <div class="deux-champs">
       <label class="champ"><span>Prix estimé (FCFA)</span><input id="sPrix" type="number" min="0" step="500" value="${esc(s.prix ?? '')}"></label>
-      <label class="champ"><span>Durée</span><select id="sDuree">${optsDuree(s.duree ?? 60)}</select></label></div>
+      <label class="champ"><span>Durée</span>${selecteur('sDuree', itemsDuree(s.duree ?? 60), s.duree ?? 60, { titre: 'Choisir la durée', dyn: v => fmtDuree(+v) })}</label></div>
     <div class="pied">${s.id ? `<button class="lien danger" data-act="supService" data-id="${esc(s.id)}">Supprimer</button>` : ''}<button class="btn sec" data-act="fermer">Annuler</button><button class="btn" data-act="sauverService" data-id="${esc(s.id || '')}">Enregistrer</button></div>`);
 }
 async function sauverService(id) {
@@ -357,7 +469,7 @@ function vueCaisse() {
   return `<header class="entete"><h1>Caisse</h1><button class="btn" data-act="nvPaiement">Nouvel encaissement</button></header>
   <div class="barre-date">
     <button class="btn sec" data-act="caJour" data-d="-1" aria-label="Jour précédent">‹</button>
-    <input type="date" id="caDate" value="${esc(d)}" data-change="caDate" aria-label="Choisir une date">
+    ${dateur('caDate', d, { marques: 'paiements', attrs: 'data-change="caDate"', titre: 'Choisir la date' })}
     <button class="btn sec" data-act="caJour" data-d="1" aria-label="Jour suivant">›</button>
     <button class="btn sec" data-act="caJour" data-d="0">Aujourd'hui</button></div>
   <div class="chiffres" style="margin-top:20px"><div class="chiffre"><div class="n">${esc(fcfa(total))}</div><div class="l">Total du ${esc(dateCourte(d))}</div></div>
@@ -368,12 +480,12 @@ function vueCaisse() {
 function modalPaiement(pre = {}) {
   const e = Object.assign({ date: S.caDate, montant: '', mode: 'Espèces', prestation: '', clientNom: '', clientId: '', rdvId: '' }, pre);
   ouvrir(`<h2>Nouvel encaissement</h2>
-    <label class="champ"><span>Cliente</span><input id="pClient" list="pClients" maxlength="80" value="${esc(e.clientNom)}"><datalist id="pClients">${S.clients.map(c => `<option value="${esc(c.nom)}"></option>`).join('')}</datalist></label>
+    <label class="champ"><span>Cliente</span><div style="display:flex;gap:8px"><input id="pClient" maxlength="80" value="${esc(e.clientNom)}" placeholder="Nom de la cliente" style="flex:1"><button type="button" class="btn sec petit" data-act="listeClientes">Liste</button></div></label>
     <label class="champ"><span>Prestation</span><input id="pPresta" maxlength="100" value="${esc(e.prestation)}"></label>
     <div class="deux-champs">
       <label class="champ"><span>Montant (FCFA)</span><input id="pMontant" type="number" min="0" step="100" value="${esc(e.montant)}"></label>
-      <label class="champ"><span>Mode de paiement</span><select id="pMode">${MODES.map(m => `<option ${m === e.mode ? 'selected' : ''}>${m}</option>`).join('')}</select></label></div>
-    <label class="champ"><span>Date</span><input id="pDate" type="date" value="${esc(e.date)}"></label>
+      <label class="champ"><span>Mode de paiement</span>${selecteur('pMode', MODES.map(m => ({ v: m, t: m })), e.mode, { titre: 'Mode de paiement' })}</label></div>
+    <label class="champ"><span>Date</span>${dateur('pDate', e.date, { marques: 'paiements' })}</label>
     <div class="pied"><button class="btn sec" data-act="fermer">Annuler</button><button class="btn" data-act="sauverPaiement" data-rdv="${esc(e.rdvId)}" data-client="${esc(e.clientId)}">Enregistrer</button></div>`);
 }
 async function sauverPaiement(rdvId, clientId) {
@@ -450,8 +562,8 @@ function vueReglages() {
     <p class="note" style="margin-top:-6px">Cette adresse est utilisée par le formulaire public : choisissez une adresse que vous acceptez de rendre accessible.</p>
     <label class="champ"><span>Numéro WhatsApp du salon</span><input id="sWa" type="tel" maxlength="20" value="${esc(r.whatsapp)}"></label>
     <div class="deux-champs">
-      <label class="champ"><span>Ouverture</span><input id="sOuv" type="time" value="${esc(r.ouverture)}"></label>
-      <label class="champ"><span>Fermeture</span><input id="sFer" type="time" value="${esc(r.fermeture)}"></label></div>
+      <label class="champ"><span>Ouverture</span>${heureur('sOuv', r.ouverture, { titre: "Heure d'ouverture" })}</label>
+      <label class="champ"><span>Fermeture</span>${heureur('sFer', r.fermeture, { titre: 'Heure de fermeture' })}</label></div>
     <label class="champ"><span>Sonnerie de rappel (minutes avant le rendez-vous)</span><input id="sRap" type="number" min="1" max="120" value="${esc(r.rappelMin)}"></label>
     <button class="btn" data-act="sauverReglages">Enregistrer les réglages</button></section>
   <section class="panneau"><h2 style="margin-bottom:14px">Son sur cet appareil</h2>
@@ -533,6 +645,13 @@ const ACT = {
       existante ? { clientId: existante.id } : { nouveauNom: d.nom, nouveauTel: d.telephone })); },
   dmTraitee: el => updateDoc(doc(db, 'demandes', el.dataset.id), { statut: 'traitee' }),
   dmSup: async el => { if (confirm('Supprimer cette demande ?')) await deleteDoc(doc(db, 'demandes', el.dataset.id)); },
+  pick: el => ouvrirSelecteur(el.dataset.id),
+  pickDate: el => ouvrirDate(el.dataset.id),
+  pickHeure: el => ouvrirHeureApp(el.dataset.id),
+  listeClientes: () => {
+    if (!S.clients.length) return toast('Aucune cliente enregistrée pour le moment.');
+    ouvrirListe('Choisir la cliente', [...S.clients].sort((a, b) => (a.nom || '').localeCompare(b.nom || '')).map(c => ({ v: c.id, t: c.nom, sous: c.telephone || '' })), '', it => { $('#pClient').value = it.t; });
+  },
   /* Réglages */
   sauverReglages: async () => {
     const r = { nomSalon: $('#sNom').value.trim() || 'Bella Market', emailNotif: $('#sEmail').value.trim(), whatsapp: $('#sWa').value.trim(), ouverture: $('#sOuv').value || '08:00', fermeture: $('#sFer').value || '19:00', rappelMin: +$('#sRap').value || 15 };
@@ -557,7 +676,7 @@ document.addEventListener('change', e => {
   if (e.target.id === 'rClient') $('#rNew').style.display = e.target.value === 'new' ? 'block' : 'none';
   if (e.target.id === 'rService') {
     const s = S.services.find(x => x.id === e.target.value);
-    if (s) { $('#rPresta').value = s.nom; $('#rPrix').value = s.prix; $('#rDuree').innerHTML = optsDuree(s.duree); }
+    if (s) { $('#rPresta').value = s.nom; $('#rPrix').value = s.prix; setPick('rDuree', s.duree); }
   }
 });
 document.addEventListener('input', e => {
