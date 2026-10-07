@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Bellamarket · Gestion</title>
+<title>Bellamarket</title>
 <meta name="theme-color" content="#010101">
 <meta name="robots" content="noindex, nofollow">
 <link rel="manifest" href="manifest.json">
@@ -28,8 +28,14 @@ button,input,select,textarea{font:inherit;color:inherit}
 :focus-visible{outline:3px solid var(--or);outline-offset:2px}
 .sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
 
+/* Écran de démarrage : le logo seul, jusqu'à ce que l'appli soit prête */
+#splash{position:fixed;inset:0;z-index:100;display:grid;place-items:center;background:var(--logo)}
+#splash img{width:220px;max-width:58%;height:auto;animation:apparition .5s ease both}
+#splash.fin{opacity:0;transition:opacity .3s;pointer-events:none}
+@keyframes apparition{from{opacity:0}to{opacity:1}}
+
 /* Connexion */
-#login{display:grid;place-items:center;min-height:100vh;background:var(--logo);padding:24px}
+#login{display:none;place-items:center;min-height:100vh;background:var(--logo);padding:24px}
 .login-box{width:100%;max-width:360px;text-align:center}
 .login-box img{width:240px;max-width:70%;height:auto;display:block;margin:0 auto 8px}
 .login-box .filet{height:1px;background:var(--or);width:64px;margin:0 auto 24px}
@@ -203,6 +209,8 @@ nav.bas-nav{display:none}
 </head>
 <body>
 
+<div id="splash" aria-hidden="true"><img data-logo alt=""></div>
+
 <section id="login">
   <div class="login-box">
     <img data-logo alt="Bella Market">
@@ -223,7 +231,6 @@ nav.bas-nav{display:none}
   <aside class="lat">
     <img data-logo alt="Bella Market">
     <nav id="navLat" aria-label="Navigation principale"></nav>
-    <div class="bas">Gestion du salon</div>
   </aside>
   <main id="vue" tabindex="-1"></main>
   <nav class="bas-nav" id="navBas" aria-label="Navigation principale"></nav>

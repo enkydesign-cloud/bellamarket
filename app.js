@@ -688,6 +688,7 @@ function ecouter() {
   unsubs.forEach(f => f()); unsubs = [];
   const col = (nom, cle) => onSnapshot(collection(db, nom), snap => {
     S[cle] = snap.docs.map(d => ({ id: d.id, ...d.data() })); render();
+    if (cle === 'rdv') masquerSplash();
     if (cle === 'rdv' && !creneauxSync) { creneauxSync = true; S.rdv.filter(r => r.date >= today() && r.statut !== 'annule').forEach(r => majCreneau(r.id, r).catch(() => {})); }
   }, erreur);
   unsubs.push(col('clients', 'clients'), col('services', 'services'), col('rdv', 'rdv'), col('paiements', 'paiements'));
@@ -709,6 +710,13 @@ function ecouter() {
   }, erreur));
 }
 
+/* ===== Écran de démarrage ===== */
+function masquerSplash() {
+  const sp = $('#splash'); if (!sp || sp.classList.contains('fin')) return;
+  sp.classList.add('fin'); setTimeout(() => sp.remove(), 350);
+}
+setTimeout(() => { if (!S.user) { $('#login').style.display = 'grid'; } masquerSplash(); }, 10000);
+
 /* ===== Connexion ===== */
 $('#loginForm').addEventListener('submit', async e => {
   e.preventDefault(); audio();
@@ -727,6 +735,6 @@ $('#lOubli').addEventListener('click', async () => {
 });
 onAuthStateChanged(auth, u => {
   S.user = u;
-  if (u) { $('#login').style.display = 'none'; $('#app').classList.add('on'); ecouter(); render(); demarrerRappels(); }
-  else { unsubs.forEach(f => f()); unsubs = []; $('#app').classList.remove('on'); $('#login').style.display = 'grid'; }
+  if (u) { $('#login').style.display = 'none'; $('#app').classList.add('on'); ecouter(); render(); demarrerRappels(); setTimeout(masquerSplash, 3500); }
+  else { unsubs.forEach(f => f()); unsubs = []; $('#app').classList.remove('on'); $('#login').style.display = 'grid'; masquerSplash(); }
 });
